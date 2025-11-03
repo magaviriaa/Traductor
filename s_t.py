@@ -9,7 +9,14 @@ from bokeh.models import CustomJS
 from streamlit_bokeh_events import streamlit_bokeh_events
 
 from gtts import gTTS
-from deep_translator import GoogleTranslator  # reemplaza a googletrans
+
+# ---- Fallback: instala deep-translator si no está
+try:
+    from deep_translator import GoogleTranslator
+except ModuleNotFoundError:
+    import sys, subprocess
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "deep-translator"])
+    from deep_translator import GoogleTranslator
 
 
 # ==========================
@@ -18,7 +25,6 @@ from deep_translator import GoogleTranslator  # reemplaza a googletrans
 st.title("SWIFTIE TRADUCTOR DE LETRAS")
 st.subheader("Escucho tu frase y la traduzco al idioma que necesites — Taylor's Version.")
 
-# Carga segura de imagen
 IMG_PATH = "swift_microfono.jpg"
 if os.path.exists(IMG_PATH):
     image = Image.open(IMG_PATH)
@@ -41,7 +47,6 @@ st.write("Toca el botón y di/canta la línea que quieres traducir:")
 # Botón de captura por voz (Web Speech API via Bokeh)
 # ==========================
 stt_button = Button(label=" Escuchar  🎤 (Eras Mode)", width=300, height=50)
-
 stt_button.js_on_event(
     "button_click",
     CustomJS(
@@ -87,13 +92,12 @@ if result:
     if "GET_TEXT" in result:
         st.write(result.get("GET_TEXT"))
 
-    # carpeta temporal para audios
     os.makedirs("temp", exist_ok=True)
 
     st.title("Letra → Audio")
     text = str(result.get("GET_TEXT") or "").strip()
 
-    # ---- Mapas de idioma y acento
+    # Idiomas y acentos
     lang_options = ["Inglés", "Español", "Bengali", "Coreano", "Mandarín", "Japonés"]
     lang_code = {
         "Inglés": "en",
@@ -133,7 +137,7 @@ if result:
     english_accent = st.selectbox("Selecciona el acento (si eliges inglés)", accent_options)
     tld = tld_map.get(english_accent, "com")
 
-    # ---- Utilidades
+    # Utilidades
     def safe_filename(s: str, maxlen: int = 20) -> str:
         base = (s or "audio").strip()[:maxlen]
         base = "".join(ch for ch in base if ch.isalnum() or ch in (" ", "-", "_")).strip()
@@ -155,8 +159,8 @@ if result:
         trans_text = translate_text(text, src=input_language, dest=output_language)
         tts = gTTS(trans_text or text, lang=output_language, tld=tld, slow=False)
         file_name = safe_filename(text)
-        path = f"temp/{file_name}.mp3"
-        tts.save(path)
+        out_path = f"temp/{file_name}.mp3"
+        tts.save(out_path)
         return file_name, trans_text or text
 
     display_output_text = st.checkbox("Mostrar el texto traducido")
